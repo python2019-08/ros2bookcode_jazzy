@@ -11,6 +11,7 @@ def generate_launch_description():
     urdf_tutorial_path = get_package_share_directory('fishbot_description')
     default_model_path = urdf_tutorial_path + '/urdf/fishbot/fishbot.urdf.xacro'
     default_world_path = urdf_tutorial_path + '/world/custom_room.world.sdf'
+    default_rviz_config_path = urdf_tutorial_path + '/config/rviz/display_model.rviz'
 
     # 为 Launch 声明参数
     action_declare_arg_mode_path = launch.actions.DeclareLaunchArgument(
@@ -29,7 +30,12 @@ def generate_launch_description():
     robot_state_publisher_node = launch_ros.actions.Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
-        parameters=[{'robot_description': robot_description}]
+        parameters=[{
+            'robot_description': robot_description,
+            # 仿真里必须和 Gazebo 用同一个 /clock，否则 TF 时间戳会混用
+            # 系统时间和仿真时间，RViz/slam_toolbox 查询 TF 时容易报错。
+            'use_sim_time': True,
+        }]
     )
 
     # ========== JAZZY 改动：替换 gazebo_ros 为 ros_gz_sim ==========
@@ -120,9 +126,18 @@ def generate_launch_description():
             '/camera_sensor/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
             # 
             '/gz/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
+            # 支持 gz.msgs.Twist ↔ geometry_msgs/msg/TwistStamped 转换
+            '/cmd_vel@geometry_msgs/msg/TwistStamped[gz.msgs.Twist',
         ],
         output='screen'
     )
+
+    # RViz 节点
+    rviz_node = launch_ros.actions.Node(
+        package='rviz2',
+        executable='rviz2',
+        arguments=['--display-config', default_rviz_config_path]
+    )    
 
     ld = launch.LaunchDescription([
         action_declare_arg_mode_path,
@@ -144,5 +159,7 @@ def generate_launch_description():
                 on_exit=[load_fishbot_diff_drive_controller],
             )
         ),
+        rviz_node,
     ])
     return ld
+

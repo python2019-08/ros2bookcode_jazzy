@@ -380,3 +380,79 @@ ros2 topic hz /clock               # 应该有频率（这个 bridge 大约 1kHz
 ros2 topic hz /odom_01by_ros2control   # 应为 50Hz（publish_rate）
 ros2 run tf2_tools view_frames     # odom -> base_footprint 时间戳正常
 ```
+
+======================================
+
+# ch03.plugin filename
+
+<plugin filename="libgz_ros2_control-system.so" 
+                    name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+和
+  <plugin filename="gz-sim-diff-drive-system" 
+          name="gz::sim::systems::DiffDrive">
+中的filename ,为何一个是lib***.so,另一个不是?
+
+<!-- google AI -->
+這兩個 filename 寫法不同的核心原因在於：現代 Gazebo（原名 Ignition）引入了「跨平台路徑自動補解析」機制，而不同外掛的開發規範與整合方式存在歷史或跨平台考量。
+
+## 具體原因可以拆解為以下幾點：
+
+1. 跨平台相容性與自動補全 (Cross-Platform Compatibility)
+
+• gz-sim-diff-drive-system：這是 Gazebo 官方內建的系統外掛（System Plugin）。新版 Gazebo 為了支援跨平台（Linux、macOS、Windows），在讀取官方外掛時，不建議寫死前綴與副檔名。
+	• Gazebo 底層會根據當前作業系統自動補全：
+		• Linux：自動尋找 libgz-sim-diff-drive-system.so
+		• macOS：自動尋找 libgz-sim-diff-drive-system.dylib
+		• Windows：自動尋找 gz-sim-diff-drive-system.dll 
+• libgz_ros2_control-system.so：這是由 ROS 2 社群（而非 Gazebo 官方核心）維護的第三方外掛。在 Linux (Ubuntu) 環境下，它被編譯並安裝在標準的 ROS 2 程式庫路徑中（例如 /opt/ros/<distro>/lib/）。因此通常習慣以完整的 Linux 共享庫檔名來指定它。
+
+2. 搜尋路徑與外掛類型
+
+Gazebo 在加載這兩個外掛時，背後的搜尋邏輯不同：
+• 官方內建外掛：像 gz-sim-diff-drive-system 存放在 Gazebo 的預設外掛目錄中（由環境變數 GZ_SIM_SYSTEM_PLUGIN_PATH 定義）。Gazebo 對這些內部組件有完美的索引，直接寫外掛名稱（Project Target Name）即可識別。
+• ROS 2 整合外掛：libgz_ros2_control-system.so 需要明確指示副檔名，以確保 Gazebo 的外掛加載器（基於 PluginLoader）能精確將其作為一個硬性共享庫檔（Shared Library）直接開啟。 
+
+## 💡 結論與實務建議
+
+其實在較新版本的 Gazebo（如 Harmonic、Ionic）中，gz_ros2_control 往往也已經支援省略前後綴的寫法。
+• 最穩健的原則：如果是 Gazebo 官方內建的外掛，一律省略 lib 和 .so；如果是第三方或 ROS 專屬外挂，若遇到找不到外掛的錯誤，寫出完整的 lib***.so 通常是最安全、最直接的作法。
+
+
+# ch04.ROS2Jazzy中,diff_drive_controller和Gazebo的原生 DiffDrive订阅topic
+  
+
+1. ROS2 Jazzy 的 diff_drive_controller
+
+• 預設訂閱：geometry_msgs/msg/TwistStamped。
+• 變更原因：ROS 2 官方社群為了提升控制系統的即時性（Real-time）與安全性，從 Jazzy 開始，許多官方控制器（如 ros2_controllers 中的差速驅動、非完整性驅動等）都強制或預設切換為帶有時間戳與座標系資訊的 TwistStamped。
+• 影響：如果你直接執行舊版的鍵盤控制 ros2 run teleop_twist_keyboard teleop_twist_keyboard，它發布的是沒有時間戳的 Twist，控制器會完全忽略它。 
+
+2. Gazebo (gz sim) 的原生 DiffDrive 外掛
+
+• 預設訂閱：gz.msgs.Twist（不帶時間戳）。
+• 對應 ROS 2 類型：在透過 ros_gz_bridge 進行橋接時，它對應的是 ROS 2 的 geometry_msgs/msg/Twist。
+• 核心原因：Gazebo 的模擬核心外掛（如 gz-sim-diff-drive-system）為了保持通用性與內部訊息設計的簡潔，其底層接收的依舊是純粹的 Twist 速度向量。 
+
+🛠️ 實務上如何解決這個不匹配？
+
+根據你的架構選擇，通常有以下兩種解決方案：
+
+方案 A：如果你使用 ros2_control（硬體抽象層整合）
+
+如果你使用了 gz_ros2_control 外掛，ROS 2 的 diff_drive_controller 會直接跑在模擬器內。此時你不需要手動用 bridge 橋接 cmd_vel。
+• 解決辦法：讓發布端發出帶時間戳的指令。例如執行鍵盤遙控時，必須加上 stamped 參數： [1] (/goto?url=CAESYAHrOzAVySlyi2SQE8NZt178EPe02B0FXvS2mnMbfBvjJIdMiHjf5ZGT4ffuWGy6ktulCIBht8fuoys31kWXTz4boBq1OEdmNJ-232wdSWzIEn4bFBwJyW3DvvWk0QrLvA)
+bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p stamped:=true -r /cmd_vel:=/diff_drive_controller/cmd_vel
+請謹慎使用程式碼。
+
+方案 B：如果你使用 ros_gz_bridge（純主題橋接）
+
+如果你是直接用 Gazebo 原生外掛，並用 ros_gz_bridge 來傳遞鍵盤或 Nav2 的指令給 Gazebo。
+• 解決辦法：新版的 ros_gz_bridge 已經支援在橋接時自動進行型態轉換。你可以在 Launch 檔或終端機中這樣設定，直接把 ROS 2 的 TwistStamped 轉成 Gazebo 的 Twist：bash
+ros2 run ros_gz_bridge parameter_bridge /cmd_vel@geometry_msgs/msg/TwistStamped[gz.msgs.Twist
+請謹慎使用程式碼。
+(注意：後方的 [ 代表單向由 ROS 2 傳入 Gazebo) 
+你目前正在處理的專案，是採取 方案 A（使用 ros2_control + gz_ros2_control） 還是 方案 B（單純用 ros_gz_bridge 連接 Gazebo 原生外掛） 呢？我可以依據你的架構提供具體的軟體包設定檔（.yaml 或 .sdf）修改範例。
+
+
+

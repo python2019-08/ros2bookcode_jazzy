@@ -43,7 +43,10 @@ fishbot_diff_drive_controller:
     pose_covariance_diagonal : [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     twist_covariance_diagonal: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-    open_loop: true
+    # 用轮子编码器的实际位置计算机器人位移/偏航，而不是对 cmd_vel 做开环积分。
+    # 开环时一旦轮子打滑或被挡住，odom 会一直累积错误，SLAM 的地图就会错位/重影。
+    open_loop: false
+    position_feedback: true
     enable_odom_tf: true
 
     cmd_vel_timeout: 0.5

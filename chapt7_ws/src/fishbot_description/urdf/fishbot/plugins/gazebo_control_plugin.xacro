@@ -3,8 +3,6 @@
 <xacro:macro name="gazebo_control_plugin">
 <gazebo>
 
- 
-
   <plugin filename="gz-sim-diff-drive-system" 
           name="gz::sim::systems::DiffDrive">
     <!-- 车轮关节名 -->
@@ -23,6 +21,7 @@
     <robot_base_frame>base_footprint</robot_base_frame>
 
     <!-- 话题名称（Harmonic DiffDrive插件原生发布gz消息，需要ros_gz_bridge转ROS2话题） -->
+    <!-- 订阅话题/cmd_vel ； 发布话题 /gz/odom  -->
     <cmd_vel_topic>/cmd_vel_00by_diff_drive</cmd_vel_topic>
     <odom_topic>/gz/odom_00by_diff_drive</odom_topic>
 

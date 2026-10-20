@@ -12,10 +12,17 @@
                     <color rgba="0.0 0.0 0.0 0.8"/>
                 </material>
             </visual>
+            <!--
+              碰撞体用球体而不是圆柱体：圆柱轮与地面接触时，ODE 会把接触点
+              放在圆柱两端的棱边上，等效轮距会在 0.16 m（内棱）和 0.24 m（外棱）
+              之间跳变，导致里程计偏航角出现 ±20% 的随机误差，SLAM 建图会重影。
+              球体的接触点固定在轮子中心正下方（y=±0.10 m），与 wheel_separation
+              参数一致。视觉仍保留圆柱体，外观不变。
+            -->
             <collision>
-                <origin xyz="0 0 0" rpy="1.57079 0 0" />
+                <origin xyz="0 0 0" rpy="0 0 0" />
                 <geometry>
-                    <cylinder length="0.04" radius="0.032" />
+                    <sphere radius="0.032" />
                 </geometry>
                 <material name="black">
                     <color rgba="0.0 0.0 0.0 0.8"/>

@@ -53,8 +53,10 @@ sudo pip3 install transforms3d
 
 构建功能包
 
-```
+```sh
 colcon build
+# or
+colcon build --symlink-install --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
 ```
 
 运行仿真

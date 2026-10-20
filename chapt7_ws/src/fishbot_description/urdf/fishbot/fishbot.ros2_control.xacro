@@ -40,8 +40,13 @@
                     name="gz_ros2_control::GazeboSimROS2ControlPlugin">
                 <parameters>$(find fishbot_description)/config/fishbot_ros2_controller.yaml</parameters>
                 <ros>
-                    <remapping>/fishbot_diff_drive_controller/cmd_vel:=/cmd_vel_01by_ros2control</remapping>
-                    <remapping>/fishbot_diff_drive_controller/odom:=/odom_01by_ros2control</remapping>
+                    <!-- 命名映射:
+                        原名称:=新名称     
+                    -->
+                    <!-- ros2control订阅的话题 /cmd_vel -->
+                    <remapping>/fishbot_diff_drive_controller/cmd_vel:=/cmd_vel</remapping>
+                    <!-- ros2control发布的话题 /odom -->
+                    <remapping>/fishbot_diff_drive_controller/odom:=/odom</remapping>
                 </ros>
             </plugin>
         </gazebo>

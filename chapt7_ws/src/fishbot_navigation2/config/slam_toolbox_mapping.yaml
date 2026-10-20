@@ -1,0 +1,93 @@
+# slam_toolbox 在线异步建图参数（FishBot / Gazebo Harmonic）
+#
+# 相比 slam_toolbox 自带的 mapper_params_online_async.yaml，主要调低了三项
+# 扫描处理阈值。默认值是给“轮式里程计比较可靠、移动速度接近 0.5 m/s”的
+# 平台用的：
+#   minimum_time_interval   0.5 s
+#   minimum_travel_distance 0.5 m
+#   minimum_travel_heading  0.5 rad (约 28.6°)
+# 本车最大线速度只有约 0.03 m/s，转动也慢，用默认值会导致很久才处理一帧，
+# 转弯时相邻两帧之间角度变化过大，扫描匹配容易跟丢，地图出现重影/扇形拖影。
+#
+# 2026-10-20 针对“移动到右侧房间时整图突然垮掉”的调整：
+#   - gpu_lidar 量程 8 m -> 25 m，max_laser_range 取 23 m；
+#   - 收紧回环搜索范围与响应阈值，降低对称房间之间的假回环；
+#   - 提高 variance penalty，仿真里更信任里程计；
+#   - 建图时关闭交互模式，避免 RViz 误拖位姿图节点。
+# 分析与分区合并方案见 multi-area-build-map.md。
+slam_toolbox:
+  ros__parameters:
+    # Plugin params
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+    # ROS Parameters
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_footprint
+    scan_topic: /scan
+    use_map_saver: true
+    mode: mapping #localization
+    use_sim_time: true
+
+    debug_logging: false
+    throttle_scans: 1
+    transform_publish_period: 0.02
+    map_update_interval: 1.0
+    resolution: 0.05
+    restamp_tf: false
+    min_laser_range: 0.0
+    # 雷达本体 <max> 已改为 25.0 m（房子对角线约 22 m）。这里要略小于本体上限：
+    # 不要和传感器上限取同一个值——Gazebo 打不到目标时返回的就是 <max>，
+    # 和真实最远读数的数值完全一样，容易被匹配器当成有效回波，
+    # 在大厅/走廊里形成一圈跟着机器人走的假边界。
+    max_laser_range: 23.0
+    minimum_time_interval: 0.1    # 雷达 10 Hz，最多每帧都处理
+    transform_timeout: 0.5
+    tf_buffer_duration: 30.0
+    stack_size_to_use: 40000000
+    enable_interactive_mode: false  # 建图时关闭，避免 RViz 误拖位姿图节点触发全局修正
+
+    # General Parameters
+    use_scan_matching: true
+    use_scan_barycenter: true
+    minimum_travel_distance: 0.05  # 车慢，0.5 m 太粗糙
+    minimum_travel_heading: 0.05   # 0.5 rad 太粗糙，转弯时匹配会跟丢
+    check_min_dist_and_heading_precisely: false
+    scan_buffer_size: 10
+    scan_buffer_maximum_scan_distance: 10.0
+    link_match_minimum_response_fine: 0.1
+    link_scan_maximum_distance: 1.5
+    loop_search_maximum_distance: 2.5  # 收紧：5.0 容易把相邻的相似房间配成回环
+    do_loop_closing: true
+    loop_match_minimum_chain_size: 15  # 需要更长的连续匹配链才接受回环
+    loop_match_maximum_variance_coarse: 3.0
+    loop_match_minimum_response_coarse: 0.45  # 四角房间布局对称，提高回环门槛
+    loop_match_minimum_response_fine: 0.60
+
+    # Correlation Parameters - Correlation Parameters
+    correlation_search_space_dimension: 0.5
+    correlation_search_space_resolution: 0.01
+    correlation_search_space_smear_deviation: 0.1
+
+    # Correlation Parameters - Loop Closure Parameters
+    loop_search_space_dimension: 4.0  # 收紧：8.0 的搜索窗会跨房间匹配
+    loop_search_space_resolution: 0.05
+    loop_search_space_smear_deviation: 0.03
+
+    # Scan Matcher Parameters
+    distance_variance_penalty: 2.0    # 仿真里程计可靠（open_loop: false），更信任 odom
+    angle_variance_penalty: 2.0
+
+    fine_search_angle_offset: 0.00349
+    coarse_search_angle_offset: 0.349
+    coarse_angle_resolution: 0.0349
+    minimum_angle_penalty: 0.9
+    minimum_distance_penalty: 0.5
+    use_response_expansion: true
+    min_pass_through: 2
+    occupancy_threshold: 0.1
