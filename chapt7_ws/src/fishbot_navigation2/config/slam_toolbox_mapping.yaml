@@ -58,10 +58,10 @@ slam_toolbox:
     minimum_travel_distance: 0.05  # 车慢，0.5 m 太粗糙
     minimum_travel_heading: 0.05   # 0.5 rad 太粗糙，转弯时匹配会跟丢
     check_min_dist_and_heading_precisely: false
-    scan_buffer_size: 10
+    scan_buffer_size: 20
     scan_buffer_maximum_scan_distance: 10.0
-    link_match_minimum_response_fine: 0.1
-    link_scan_maximum_distance: 1.5
+    link_match_minimum_response_fine: 0.35
+    link_scan_maximum_distance: 1.0
     loop_search_maximum_distance: 2.5  # 收紧：5.0 容易把相邻的相似房间配成回环
     do_loop_closing: true
     loop_match_minimum_chain_size: 15  # 需要更长的连续匹配链才接受回环
@@ -70,9 +70,9 @@ slam_toolbox:
     loop_match_minimum_response_fine: 0.60
 
     # Correlation Parameters - Correlation Parameters
-    correlation_search_space_dimension: 0.5
+    correlation_search_space_dimension: 0.2
     correlation_search_space_resolution: 0.01
-    correlation_search_space_smear_deviation: 0.1
+    correlation_search_space_smear_deviation: 0.03
 
     # Correlation Parameters - Loop Closure Parameters
     loop_search_space_dimension: 4.0  # 收紧：8.0 的搜索窗会跨房间匹配

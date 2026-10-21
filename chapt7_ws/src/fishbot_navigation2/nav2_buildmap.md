@@ -163,6 +163,7 @@ ODE 处理圆柱-平面接触时，会把接触点放在圆柱两端的棱边上
 ```sh
 cd /home/abner/a2/zdev/nv/adas-01/ros/ros2bookcode_jazzy/chapt7_ws
 source /opt/ros/jazzy/setup.bash
+rm -fr build/ log/ install/
 # colcon build --symlink-install --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
 colcon build --symlink-install --packages-select fishbot_description fishbot_navigation2
 source install/setup.bash
@@ -300,6 +301,7 @@ colcon build --packages-select fishbot_description
 
 ### 第 2 步：改用连续控制的键盘遥控，不要用 GUI 点按。
 ```sh
+# 改用连续控制的键盘遥控，不要用 GUI 点按。
 ros2 run teleop_twist_keyboard teleop_twist_keyboard \
   --ros-args -p stamped:=true -p speed:=0.05 -p turn:=0.3
 ```
@@ -330,7 +332,7 @@ gz model -m fishbot -p
 
 ## 结论先说
 
-这次地图的问题不是里程计，也不是雷达/TF，而是 slam_toolbox 的扫描匹配在大厅里“合法地”滑移了：里程计和真值几乎一致，雷达在真值坐标系里也对得上墙，但 slam_toolbox 把一部分扫描放到了错误的位姿上，生成的地图自洽却整体/局部变形。右上角门口只是触发点，不是根因。
+这次地图的问题不是里程计，也不是雷达/TF，而是 slam_toolbox 的 **扫描匹配** 在大厅里“合法地”滑移了：里程计和真值几乎一致，雷达在真值坐标系里也对得上墙，但 slam_toolbox 把一部分扫描放到了错误的位姿上，生成的地图自洽却整体/局部变形。右上角门口只是触发点，不是根因。
 
 ch03 里“里程计严重失真”的结论不适用于这次运行——同一场仿真实测：
 
@@ -415,6 +417,7 @@ src/fishbot_navigation2/config/slam_toolbox_mapping.yaml
     do_loop_closing: false        # 没有匹配，回环也失去意义
 ```
 其余参数保持不变。效果：地图由“已知正确的里程计”直接拼出，不会出现扇形、双层墙、墙被拉歪；map → odom 会一直≈单位变换。**这只说明仿真里的 odom/scan 是对的，不能作为建图策略写进真机流程。**
+<!-- 注：经验证，确实建图 src/fishbot_navigation2/maps/room03_noScanMatch_noloopClosing.pgm 很干净. -->
 
 ### 方案 B（推荐，仿真和真机都适用）：把匹配收紧，让 odom 先验说话
 ```yaml
@@ -426,7 +429,15 @@ src/fishbot_navigation2/config/slam_toolbox_mapping.yaml
     link_match_minimum_response_fine: 0.35      # 0.1 -> 0.35，拒绝弱匹配
     link_scan_maximum_distance: 1.0             # 1.5 -> 1.0
 ```
+<!-- 注：经验证，在 “use_scan_matching: true“ 且 “do_loop_closing: false“ 的配置下， 
+建图的地图 
+src/fishbot_navigation2/maps/room04B_t-scan-matching_f-loop-closing.pgm 
+干净。 -->
+
 等地图干净了，再打开回环。注意 `loop_search_maximum_distance` 不能收得比“回到旧区域时的预计漂移”还小——本次最终漂移就有 2.28 m，收到 3.0 m 几乎不留余量。正确做法是让搜索半径覆盖漂移（5~8 m），靠提高 `loop_match_minimum_response_*` 和 `loop_match_minimum_chain_size` 来拒绝误回环。完整原则见 ch07。
+
+<!-- 注：经验证，在 “use_scan_matching: true“ 且 “do_loop_closing: true“ 的配置下，
+   建图的地图 src/fishbot_navigation2/maps/room04B_final.pgm 干净。 -->
 
 驾驶方式（两种方案都适用）
 
@@ -439,10 +450,22 @@ src/fishbot_navigation2/config/slam_toolbox_mapping.yaml
 
 ## 重新建图与验收
 ```sh
+rm -fr build/ log/ install/
+conda deactivate
+# colcon build --symlink-install --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
+colcon build --symlink-install --packages-select fishbot_description fishbot_navigation2
+source install/setup.bash
+
 # 全部关掉（Gazebo、RViz、slam），再按原流程重启
 ros2 launch fishbot_description gazebo_sim.launch.py
 ros2 launch fishbot_navigation2 slam_mapping.launch.py use_sim_time:=True
+
+# 改用连续控制的键盘遥控，不要用 GUI 点按。
+ros2 run teleop_twist_keyboard teleop_twist_keyboard \
+  --ros-args -p stamped:=true -p speed:=0.05 -p turn:=0.3
 ```
+
+
 
 建图过程中随时检查（终端 3）：
 ```sh
@@ -455,22 +478,23 @@ gz model -m fishbot -p        # 与上一条对比，应厘米级一致
 保存为新文件名，保留 room02 做对比：
 ```sh
 ROS2_WS=/home/abner/a2/zdev/nv/adas-01/ros/ros2bookcode_jazzy/chapt7_ws
-ros2 run nav2_map_server map_saver_cli -f ${ROS2_WS}/src/fishbot_navigation2/maps/room03
+# ros2 run nav2_map_server map_saver_cli -f ${ROS2_WS}/src/fishbot_navigation2/maps/room03
+ros2 run nav2_map_server map_saver_cli -f ${ROS2_WS}/src/fishbot_navigation2/maps/room04B_t-scan-matching_f-loop-closing
 ```
 
 保存后按这几条验收：
 ┌──────────────────────────────────┬─────────────────────────────────────────────┐
 │              检查项              │                    期望                     │
 ├──────────────────────────────────┼─────────────────────────────────────────────┤
-│ 地图右边界 origin_x + width×0.05 │ ≥ 8.39（最好到 8.47）                       │
+│ 地图右边界 origin_x + width×0.05   │ ≥ 8.39（最好到 8.47）                       │
 ├──────────────────────────────────┼─────────────────────────────────────────────┤
-│ 地图左边界 origin_x              │ ≤ −10.38                                    │
+│ 地图左边界 origin_x                │ ≤ −10.38                                    │
 ├──────────────────────────────────┼─────────────────────────────────────────────┤
-│ 东墙                             │ 单线，x≈8.42–8.47，厚度 ≤ 3 格              │
+│ 东墙                              │ 单线，x≈8.42–8.47，厚度 ≤ 3 格              │
 ├──────────────────────────────────┼─────────────────────────────────────────────┤
-│ Wall_80（y≈−3.15）               │ 从 x≈−0.58 连续到 6.84，门洞 6.84–8.47 干净 │
+│ Wall_80（y≈−3.15）                │ 从 x≈−0.58 连续到 6.84，门洞 6.84–8.47 干净 │
 ├──────────────────────────────────┼─────────────────────────────────────────────┤
-│ 右上角                           │ 只有约 2×0.5 m 的书架轮廓，无大片填充       │
+│ 右上角                            │ 只有约 2×0.5 m 的书架轮廓，无大片填充       │
 ├──────────────────────────────────┼─────────────────────────────────────────────┤
 │ map → odom                       │ 全程接近单位变换                            │
 └──────────────────────────────────┴─────────────────────────────────────────────┘
@@ -587,7 +611,7 @@ link_match_minimum_response_fine、link_scan_maximum_distance 是顺序链路匹
 一套可直接用的配置
 
 建议先把系统的 mapper_params_online_async.yaml 复制出来，再改下面这些值：
-
+```yaml
 slam_toolbox:
   ros__parameters:
     mode: mapping                 # 必须是 mapping，localization 不会扩图/回环建图
@@ -610,7 +634,7 @@ slam_toolbox:
     # 4) 可选：节点更密
     # minimum_travel_distance: 0.3
     # minimum_travel_heading: 0.3
-
+```
 启动时指定：
 ```sh
 ros2 launch slam_toolbox online_async_launch.py use_sim_time:=True \
@@ -715,7 +739,7 @@ ch04的方案 B 里的 `do_loop_closing: false` 是**调试阶段的隔离手段
 - 没有回环，走一圈回到起点，地图上起点和终点对不上，表现为地图“张开口”或弯曲成香蕉形；
 - 回环通过“我又看到了以前见过的地方”建立远距离约束，再做位姿图优化，把累积误差分散到整条轨迹上；
 - 大场景建图、多楼层、多段建图拼接、长期建图（lifelong mapping）都依赖回环；
-- Cartographer、ORB-SLAM 这些系统的核心竞争力之一就是回环检测 + 全局优化。
+- Cartographer 、 ORB-SLAM 这些系统的核心竞争力之一就是回环检测 + 全局优化。
 
 所以“SLAM 强调回环”没有错，错的是把它当成万能补丁：**回环负责全局，局部必须先干净。**
 
