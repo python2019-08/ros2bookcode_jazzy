@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/opt/ros/jazzy/include/**",
+        "/mnt/a2disk/a2/zdev/nv/adas-01/ros/ros2bookcode_jazzy/chapt10/chapt10_ws/src/learn_compose/include/**",
+        "/mnt/a2disk/a2/zdev/nv/adas-01/ros/ros2bookcode_jazzy/chapt8/chapt8_ws/src/nav2_custom_controller/include/**",
+        "/mnt/a2disk/a2/zdev/nv/adas-01/ros/ros2bookcode_jazzy/chapt8/chapt8_ws/src/nav2_custom_planner/include/**",
+        "/mnt/a2disk/a2/zdev/nv/adas-01/ros/ros2bookcode_jazzy/chapt8/learn_pluginlib/src/motion_control_system/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ros2",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++17"
+    }
+  ],
+  "version": 4
+}

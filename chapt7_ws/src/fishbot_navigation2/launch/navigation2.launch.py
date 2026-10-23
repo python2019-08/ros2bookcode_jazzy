@@ -12,12 +12,14 @@ def generate_launch_description():
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
     rviz_config_dir = os.path.join(
         nav2_bringup_dir, 'rviz', 'nav2_default_view.rviz')
+    print("nav2_bringup_dir=",nav2_bringup_dir)
+    print("rviz_config_dir=",rviz_config_dir)
     
     # 创建 Launch 配置
     use_sim_time = launch.substitutions.LaunchConfiguration(
         'use_sim_time', default='true')
     map_yaml_path = launch.substitutions.LaunchConfiguration(
-        'map', default=os.path.join(fishbot_navigation2_dir, 'maps', 'room.yaml'))
+        'map', default=os.path.join(fishbot_navigation2_dir, 'maps', 'room04B_final.yaml'))
     nav2_param_path = launch.substitutions.LaunchConfiguration(
         'params_file', default=os.path.join(fishbot_navigation2_dir, 'config', 'nav2_params.yaml'))
 
