@@ -132,12 +132,12 @@ def generate_launch_description():
         output='screen'
     )
 
-    # RViz 节点
-    rviz_node = launch_ros.actions.Node(
-        package='rviz2',
-        executable='rviz2',
-        arguments=['--display-config', default_rviz_config_path]
-    )    
+    # # RViz 节点
+    # rviz_node = launch_ros.actions.Node(
+    #     package='rviz2',
+    #     executable='rviz2',
+    #     arguments=['--display-config', default_rviz_config_path]
+    # )    
 
     ld = launch.LaunchDescription([
         action_declare_arg_mode_path,
@@ -159,7 +159,7 @@ def generate_launch_description():
                 on_exit=[load_fishbot_diff_drive_controller],
             )
         ),
-        rviz_node,
+        # rviz_node,
     ])
     return ld
 

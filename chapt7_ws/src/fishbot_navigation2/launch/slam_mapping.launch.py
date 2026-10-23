@@ -18,23 +18,28 @@ def generate_launch_description():
         get_package_share_directory('fishbot_navigation2'),
         'config', 'slam_toolbox_mapping.yaml')
 
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    slam_params_file = LaunchConfiguration('slam_params_file')
+    launchArg_use_sim_time=DeclareLaunchArgument(
+                'use_sim_time', default_value='true',
+                description='Use the Gazebo /clock topic')
+    launchArg_slam_params_file= DeclareLaunchArgument(
+            'slam_params_file', default_value=default_params_file,
+            description='Full path to the slam_toolbox parameter file')
+
+    launchCfg_use_sim_time = LaunchConfiguration('use_sim_time')
+    launchCfg_slam_params_file = LaunchConfiguration('slam_params_file')
+    
+    IncludeLaunch_slam_toolbox = IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(os.path.join(
+                    get_package_share_directory('slam_toolbox'),
+                    'launch', 'online_async_launch.py')),
+                launch_arguments={
+                    'use_sim_time': launchCfg_use_sim_time,
+                    'slam_params_file': launchCfg_slam_params_file,
+                }.items(),
+            )
 
     return LaunchDescription([
-        DeclareLaunchArgument(
-            'use_sim_time', default_value='true',
-            description='Use the Gazebo /clock topic'),
-        DeclareLaunchArgument(
-            'slam_params_file', default_value=default_params_file,
-            description='Full path to the slam_toolbox parameter file'),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(
-                get_package_share_directory('slam_toolbox'),
-                'launch', 'online_async_launch.py')),
-            launch_arguments={
-                'use_sim_time': use_sim_time,
-                'slam_params_file': slam_params_file,
-            }.items(),
-        ),
+        launchArg_use_sim_time,
+        launchArg_slam_params_file,
+        IncludeLaunch_slam_toolbox,
     ])
